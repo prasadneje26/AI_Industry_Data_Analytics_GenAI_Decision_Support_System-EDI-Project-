@@ -74,7 +74,15 @@ OPENAI_API_KEY=your_key_here
 OPENAI_MODEL=gpt-5-mini
 ```
 
-Gemini is also supported with `GEMINI_API_KEY` and `GEMINI_MODEL`. Never commit `.env` or paste keys into source code.
+Gemini is also supported with `GEMINI_API_KEY` and `GEMINI_MODEL`. Local Ollama is supported through its OpenAI-compatible API:
+
+```env
+GENAI_PROVIDER=ollama
+OLLAMA_MODEL=llama3.2
+OLLAMA_BASE_URL=http://localhost:11434/v1
+```
+
+Install Ollama, run `ollama pull llama3.2`, and keep Ollama running before starting the backend. Never commit `.env` or paste keys into source code.
 
 Without a GenAI key, analytics, ML, DL, forecasting, risk, and reports remain available.
 

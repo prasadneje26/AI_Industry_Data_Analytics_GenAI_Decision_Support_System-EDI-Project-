@@ -1,0 +1,3 @@
+GENAI_PROVIDER=ollama
+OLLAMA_MODEL=llama3.2
+OLLAMA_BASE_URL=http://localhost:11434/v1

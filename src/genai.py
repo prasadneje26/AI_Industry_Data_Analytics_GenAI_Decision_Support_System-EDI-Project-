@@ -13,6 +13,14 @@ def generate(question,evidence):
             client=OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
             r=client.chat.completions.create(model=os.getenv('OPENAI_MODEL','gpt-5-mini'),messages=[{'role':'system','content':'You are a grounded business analytics copilot.'},{'role':'user','content':prompt}],temperature=.1)
             return r.choices[0].message.content
+        if provider=='ollama':
+            from openai import OpenAI
+            client=OpenAI(
+                api_key=os.getenv('OLLAMA_API_KEY','ollama'),
+                base_url=os.getenv('OLLAMA_BASE_URL','http://localhost:11434/v1'),
+            )
+            r=client.chat.completions.create(model=os.getenv('OLLAMA_MODEL','llama3.2'),messages=[{'role':'system','content':'You are a grounded business analytics copilot.'},{'role':'user','content':prompt}],temperature=.1)
+            return r.choices[0].message.content
         if provider=='gemini' and os.getenv('GEMINI_API_KEY'):
             import google.generativeai as genai
             genai.configure(api_key=os.getenv('GEMINI_API_KEY'))
@@ -25,4 +33,4 @@ def generate(question,evidence):
                     'Add provider credits or configure a different provider key in .env. '
                     'Analytics, anomaly detection, forecasting, inventory risk, and PDF reports remain available.')
         return f'GenAI provider error: {e}'
-    return 'GenAI is not configured. Add GEMINI_API_KEY or OPENAI_API_KEY in .env. All non-GenAI analytics remain available.'
+    return 'GenAI is not configured. Set GENAI_PROVIDER to gemini, openai, or ollama and add the matching settings in .env. All non-GenAI analytics remain available.'
