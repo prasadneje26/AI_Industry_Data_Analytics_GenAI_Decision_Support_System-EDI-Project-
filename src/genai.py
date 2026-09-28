@@ -1,36 +1,76 @@
-import os, json
+import json
+import os
 from dotenv import load_dotenv
+
+# Masigurado a ma-load dagiti environment variables manipud `.env`
 load_dotenv()
 
-def build_prompt(question,evidence):
-    return '''You are an enterprise business decision-support copilot.\nRules:\n1. Use ONLY the supplied evidence.\n2. Never invent numbers, causes, or business facts.\n3. Separate observed evidence from inference.\n4. If evidence is insufficient, explicitly say so.\n5. Give concise, practical recommendations with priority and rationale.\n\nSTRUCTURED EVIDENCE:\n''' + json.dumps(evidence,indent=2,default=str) + '\n\nMANAGER QUESTION:\n' + question
 
-def generate(question,evidence):
-    provider=os.getenv('GENAI_PROVIDER','gemini').lower(); prompt=build_prompt(question,evidence)
-    try:
-        if provider=='openai' and os.getenv('OPENAI_API_KEY'):
-            from openai import OpenAI
-            client=OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
-            r=client.chat.completions.create(model=os.getenv('OPENAI_MODEL','gpt-5-mini'),messages=[{'role':'system','content':'You are a grounded business analytics copilot.'},{'role':'user','content':prompt}],temperature=.1)
-            return r.choices[0].message.content
-        if provider=='ollama':
-            from openai import OpenAI
-            client=OpenAI(
-                api_key=os.getenv('OLLAMA_API_KEY','ollama'),
-                base_url=os.getenv('OLLAMA_BASE_URL','http://localhost:11434/v1'),
+def build_prompt(question, evidence):
+    return (
+        "You are an enterprise business decision-support copilot.\n"
+        "Rules:\n"
+        "1. Use ONLY the supplied evidence.\n"
+        "2. Never invent numbers, causes, or business facts.\n"
+        "3. Separate observed evidence from inference.\n"
+        "4. If evidence is insufficient, explicitly say so.\n"
+        "5. Give concise, practical recommendations with priority and rationale.\n\n"
+        "STRUCTURED EVIDENCE:\n"
+        + json.dumps(evidence, indent=2, default=str)
+        + "\n\n"
+        "MANAGER QUESTION:\n"
+        + question
+    )
+
+
+def generate(question, evidence):
+    # Siguraduhin natin na ma-reload dynamic variables
+    load_dotenv()
+
+    provider = os.getenv("GENAI_PROVIDER", "groq").lower()
+    prompt = build_prompt(question, evidence)
+
+    # 1. Subok ti GROQ
+    groq_key = os.getenv("GROQ_API_KEY")
+    if provider == "groq" or groq_key:
+        if groq_key:
+            try:
+                from openai import OpenAI
+
+                client = OpenAI(
+                    base_url="https://api.groq.com/openai/v1", api_key=groq_key
+                )
+                model_name = os.getenv("GROQ_MODEL", "openai/gpt-oss-20b")
+
+                response = client.chat.completions.create(
+                    model=model_name,
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": "You are an enterprise decision-support copilot.",
+                        },
+                        {"role": "user", "content": prompt},
+                    ],
+                )
+                return response.choices[0].message.content
+            except Exception as e:
+                return f"Groq Provider Error: {e}"
+
+    # 2. Subok ti GEMINI
+    gemini_key = os.getenv("GEMINI_API_KEY")
+    if gemini_key:
+        try:
+            from google import genai
+
+            client = genai.Client(api_key=gemini_key)
+            model_name = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+
+            response = client.models.generate_content(
+                model=model_name,
+                contents=prompt,
             )
-            r=client.chat.completions.create(model=os.getenv('OLLAMA_MODEL','llama3.2'),messages=[{'role':'system','content':'You are a grounded business analytics copilot.'},{'role':'user','content':prompt}],temperature=.1)
-            return r.choices[0].message.content
-        if provider=='gemini' and os.getenv('GEMINI_API_KEY'):
-            import google.generativeai as genai
-            genai.configure(api_key=os.getenv('GEMINI_API_KEY'))
-            model=genai.GenerativeModel(os.getenv('GEMINI_MODEL','gemini-2.5-flash'))
-            return model.generate_content(prompt).text
-    except Exception as e:
-        message = str(e).lower()
-        if '429' in message or 'credit' in message or 'quota' in message or 'insufficient' in message:
-            return ('GenAI is temporarily unavailable because the configured provider account has no remaining credits. '
-                    'Add provider credits or configure a different provider key in .env. '
-                    'Analytics, anomaly detection, forecasting, inventory risk, and PDF reports remain available.')
-        return f'GenAI provider error: {e}'
-    return 'GenAI is not configured. Set GENAI_PROVIDER to gemini, openai, or ollama and add the matching settings in .env. All non-GenAI analytics remain available.'
+            return response.text
+        except Exception as e:
+            return f"Gemini Provider Error: {e}"
+
+    return "GenAI is not configured. Add GEMINI_API_KEY, GROQ_API_KEY, or OPENAI_API_KEY in .env. All non-GenAI analytics remain available."
